@@ -1,0 +1,12 @@
+name: dashboard
+title:
+username: ajamil
+account: ajamil
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15768381
+bundleId: 11109673
+url: https://ajamil.shinyapps.io/dashboard/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

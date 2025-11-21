@@ -1,0 +1,12 @@
+name: US_dashboard
+title: US_dashboard
+username: ajamil
+account: ajamil
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16030600
+bundleId: 11162933
+url: https://ajamil.shinyapps.io/US_dashboard/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
