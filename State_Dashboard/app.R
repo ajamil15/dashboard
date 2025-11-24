@@ -10,7 +10,7 @@ library(shinythemes)
 library(ggplot2)
 
 # Load your data
-data = readRDS("ITA_FIPS.csv")
+data = readRDS("ITA_FIPS.rds")
 
 # Load shapefiles
 counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
