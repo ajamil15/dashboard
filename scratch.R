@@ -9,6 +9,10 @@ library(tigris)
 #data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
 #requires geocoded dataset ^
 
+df <- readr::read_csv("ITA_FIPS.csv")
+saveRDS(df, "ITA_FIPS.rds")
+
+
 #subset necessary columns
 #data = data[, c(6,8,11:12,18:19, 23, 37:43, 116, 119, 121,178)]
 #cross = read_csv("/Users/aliajamil/Desktop/r/work/ZIP-COUNTY-FIPS_2017-06.csv")

@@ -5,6 +5,6 @@ account: ajamil
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 16030600
-bundleId: 11227018
+bundleId: 11227077
 url: https://ajamil.shinyapps.io/US_dashboard/
 version: 1
