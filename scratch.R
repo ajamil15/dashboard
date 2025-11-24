@@ -9,8 +9,8 @@ library(tigris)
 #data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
 #requires geocoded dataset ^
 
-df <- readr::read_csv("ITA_FIPS.csv")
-saveRDS(df, "ITA_FIPS.rds")
+#df <- readr::read_csv("ITA_FIPS.csv")
+#saveRDS(df, "ITA_FIPS.rds")
 
 
 #subset necessary columns
