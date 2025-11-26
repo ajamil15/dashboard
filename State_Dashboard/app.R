@@ -37,7 +37,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                                selected = "all"),
                    hr(),
                    wellPanel(
-                     a("See full US dashboard", href = "https://ajamil.shinyapps.io/US_dashboard/", target = "_blank")
+                     a("See full US dashboard", href = "https://019ab75a-5c50-98f0-9bf7-4dfef07c5131.share.connect.posit.cloud/", target = "_blank")
                    ),
                    wellPanel(
                      strong("Rate Calculation per Establishment:"),
@@ -130,7 +130,33 @@ server <- function(input, output, session) {
              incidence = round(incidence_calc, digits = 2)) %>%
       ungroup()
     
+    
+    
     return(filtered)
+  })
+  
+  search_filter = reactive ({
+    filtered = filtered_data()
+    
+    search_term = input$narrative_table_search
+    
+    if (!is.null(search_term) && search_term != "") {
+      search <- tolower(search_term)
+      
+      search_filtered = filtered %>%
+        filter(
+          grepl(search, tolower(NEW_NAR_WHAT_HAPPENED)) |
+            grepl(search, tolower(NEW_NAR_INJURY_ILLNESS)) |
+            grepl(search, tolower(NEW_INCIDENT_DESCRIPTION)) |
+            grepl(search, tolower(NEW_NAR_OBJECT_SUBSTANCE)) |
+            grepl(search, tolower(NEW_NAR_BEFORE_INCIDENT)) |
+            grepl(search, tolower(NEW_INCIDENT_LOCATION)) |
+            grepl(search, tolower(zip_code)) |
+            grepl(search, tolower(establishment_name))
+        )
+    }
+    
+    return(search_filtered)
   })
   
   map_data <- reactive({
@@ -229,14 +255,14 @@ server <- function(input, output, session) {
     datatable(narratives, 
               options = list(pageLength = 10, scrollY = "400px"), 
               rownames = FALSE)
-  })
+  }, server = TRUE)
   
   output$download_narratives <- downloadHandler(
     filename = function() {
-      paste0("injuries_", gsub(" ", "_", input$state),"_", gsub(" ", " ", input$county), ".csv")
+      paste0("injuries", "_", gsub(" ", " ", input$industry),"_", gsub(" ", " ", input$county), ".csv")
     },
     content = function(file) {
-      download_data = filtered_data()
+      download_data = search_filter()
       
       narratives <- download_data %>%
         select(
