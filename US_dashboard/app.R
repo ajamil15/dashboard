@@ -29,7 +29,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                   selected = "all"),
     hr(),
     wellPanel(
-      a("See full US dashboard", href = "https://ajamil.shinyapps.io/US_dashboard/", target = "_blank")
+      a("See State by State dashboard", href = "https://019ab759-5952-2d37-33a5-f672273d3790.share.connect.posit.cloud/", target = "_blank")
     ),
     wellPanel(
       strong("Rate Calculation per Establishment:"),
@@ -182,6 +182,30 @@ server <- function(input, output, session) {
     return(filtered)
   })
   
+  search_filter = reactive ({
+    filtered = filtered_data()
+    
+    search_term = input$narrative_table_search
+    
+    if (!is.null(search_term) && search_term != "") {
+      search <- tolower(search_term)
+      
+      search_filtered = filtered %>%
+        filter(
+          grepl(search, tolower(NEW_NAR_WHAT_HAPPENED)) |
+            grepl(search, tolower(NEW_NAR_INJURY_ILLNESS)) |
+            grepl(search, tolower(NEW_INCIDENT_DESCRIPTION)) |
+            grepl(search, tolower(NEW_NAR_OBJECT_SUBSTANCE)) |
+            grepl(search, tolower(NEW_NAR_BEFORE_INCIDENT)) |
+            grepl(search, tolower(NEW_INCIDENT_LOCATION)) |
+            grepl(search, tolower(zip_code)) |
+            grepl(search, tolower(establishment_name))
+        )
+    }
+    
+    return(search_filtered)
+  })
+  
   
   # Narrative table + download
   output$narrative_table <- renderDT({
@@ -200,14 +224,14 @@ server <- function(input, output, session) {
     datatable(narratives, 
               options = list(pageLength = 10, scrollY = "400px"), 
               rownames = FALSE)
-  })
+  }, server = TRUE)
   
   output$download_narratives <- downloadHandler(
     filename = function() {
-      paste0("injuries", gsub(" ", "_", input$industry),"_", gsub(" ", " ", input$county), ".csv")
+      paste0("injuries", "_", gsub(" ", " ", input$industry),"_", gsub(" ", " ", input$county), ".csv")
     },
     content = function(file) {
-      download_data = filtered_data()
+      download_data = search_filter()
       
       narratives <- download_data %>%
         select(`Before Incident` = NEW_NAR_BEFORE_INCIDENT,
