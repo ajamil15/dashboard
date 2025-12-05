@@ -28,9 +28,9 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                   choices = c("All Industries" = "all", sort(unique(data$naics_title_2digits))),
                   selected = "all"),
     hr(),
-    wellPanel(
-      a("See State by State dashboard", href = "https://019ab759-5952-2d37-33a5-f672273d3790.share.connect.posit.cloud/", target = "_blank")
-    ),
+    hr(),
+    a("See full US dashboard", href = "https://019ab759-5952-2d37-33a5-f672273d3790.share.connect.posit.cloud/", target = "_blank"),
+    br(),
     wellPanel(
       strong("Rate Calculation per Establishment:"),
       "(Count of injuries and illnesses X 200,000) / Employee hours worked reported to ITA = Incidence Rate"
@@ -40,7 +40,10 @@ ui = fluidPage(theme = shinytheme("sandstone"),
       strong("Data Source:"),
       "This dashboard is based on the 2023 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
       a(" View data", href = "https://www.osha.gov/Establishment-Specific-Injury-and-Illness-Data", target = "_blank")
-    )),
+    ),
+    br(),
+    p(em("For questions, contact Alia Jamil (ajamil@gwu.edu)"))
+    ),
   
     mainPanel(
       tabsetPanel(
@@ -199,7 +202,8 @@ server <- function(input, output, session) {
             grepl(search, tolower(NEW_NAR_BEFORE_INCIDENT)) |
             grepl(search, tolower(NEW_INCIDENT_LOCATION)) |
             grepl(search, tolower(zip_code)) |
-            grepl(search, tolower(establishment_name))
+            grepl(search, tolower(establishment_name))|
+            grepl(search, tolower(company_name))
         )
     }
     
@@ -219,6 +223,7 @@ server <- function(input, output, session) {
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
              `Establishment` = establishment_name,
+             `Company` = company_name,
              `Establishment Incidence Rate (per 100 FTE)` = incidence)
     
     datatable(narratives, 
