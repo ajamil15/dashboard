@@ -29,7 +29,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                   selected = "all"),
     hr(),
     hr(),
-    a("See full US dashboard", href = "https://23-work-injury-state.share.connect.posit.cloud/", target = "_blank"),
+    a("See State by State dashboard", href = "https://23-work-injury-state.share.connect.posit.cloud/", target = "_blank"),
     br(),
     wellPanel(
       strong("Rate Calculation per Establishment:"),
