@@ -36,7 +36,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                                choices = c("All Industries" = "all"),
                                selected = "all"),
                    hr(),
-                   a("See full US dashboard", href = "https://019ab75a-5c50-98f0-9bf7-4dfef07c5131.share.connect.posit.cloud/", target = "_blank"),
+                   a("See full US dashboard", href = "https://23-work-injury-us.share.connect.posit.cloud/", target = "_blank"),
                    br(),
                    wellPanel(
                      strong("Rate Calculation per Establishment:"),
