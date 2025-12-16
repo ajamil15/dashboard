@@ -97,7 +97,8 @@ server <- function(input, output, session) {
     popup_text = sprintf(
       "<strong>%s County,</strong><br/>
     <strong>%s</strong><br/>
-    Total Injuries: %g",
+    Total Injuries: %g<br/>
+      <a href='#' onclick='Shiny.setInputValue(\"deselect_county\", Math.random());'>Clear Selection</a>",
       map_df$NAME,
       map_df$STATE_NAME,
       map_df$total_injuries
@@ -151,17 +152,15 @@ server <- function(input, output, session) {
 
  
   observeEvent(input$injury_map_shape_click, {
-    tryCatch({
       click <- input$injury_map_shape_click
       clicked_geoid <- click$id
       
-      selectedcounty(clicked_geoid)
-      
-    }, error = function(e) {
-      cat("Click error:", e$message, "\n")
-    })
+        selectedcounty(clicked_geoid)
   })
   
+  observeEvent(input$deselect_county, {
+    selectedcounty(NULL)
+  })
   
   filtered_data = reactive({
     filtered = data
