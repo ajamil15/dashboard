@@ -13,7 +13,7 @@ library(ggplot2)
 data = readRDS("ITA_FIPS.rds")
 
 # Load shapefiles
-counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
+state_sf = states(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
   st_transform(crs = 4326) %>%
   st_simplify(dTolerance = 500)
 
@@ -28,10 +28,6 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                                "Select State to start:",
                                choices = c("", sort(unique(data$STATE))),
                                selected = ""),
-                   selectInput("county", 
-                               "Select County (optional):",
-                               choices = c("All Counties" = "all"),
-                               selected = "all"),
                    selectInput("industry", "Filter by Industry (optional):", 
                                choices = c("All Industries" = "all"),
                                selected = "all"),
@@ -54,7 +50,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                  
                  mainPanel(
                    tabsetPanel(
-                     tabPanel("County-level Map", 
+                     tabPanel("State-level Map", 
                               leafletOutput("injury_map", height = "700px")),
                      tabPanel("Injury Details",
                               DTOutput("narrative_table"),
@@ -65,41 +61,14 @@ ui = fluidPage(theme = shinytheme("sandstone"),
 #server
 server <- function(input, output, session) {
   
-  #county choices 
-  observeEvent(input$state, {
-    if (!is.null(input$state)) {
-      choices = data %>%
-        filter(STATE == input$state) %>%
-        distinct(COUNTYNAME) %>%
-        arrange(COUNTYNAME) %>%
-        pull(COUNTYNAME)
-    } else {choices = character(0)}
-    updateSelectInput(
-      session, "county",
-      choices = c("All Counties" = "all", as.list(choices)),
-      selected = "all"
-    )
-  })
   
   observeEvent({
-    input$county
     input$state
-  }, {
-
-    if (!is.null(input$county) && input$county != "all") {
-      choices2 = data %>%
-        filter(COUNTYNAME == input$county) %>%
-        distinct(naics_title_2digits) %>%
-        arrange(naics_title_2digits) %>%
-        pull(naics_title_2digits)
-    } 
-    else {
-      choices2 = data %>%
+  }, {choices2 = data %>%
         filter(STATE == input$state) %>%
         distinct(naics_title_2digits) %>%
         arrange(naics_title_2digits) %>%
         pull(naics_title_2digits)
-    }
     
       updateSelectInput(
         session, "industry",
@@ -117,9 +86,6 @@ server <- function(input, output, session) {
       filtered <- filtered %>% filter(STATE == input$state)
     }
     
-    if (!is.null(input$county) && input$county != "all") {
-      filtered <- filtered %>% filter(COUNTYNAME == input$county)
-    }
     
     if (!is.null(input$industry) && input$industry != "all") {
       filtered <- filtered %>% filter(naics_title_2digits == input$industry)
@@ -170,21 +136,18 @@ server <- function(input, output, session) {
     
     agg_data = agg_data %>%
       filter(STATE == input$state)%>%
-      group_by(GEOID, COUNTYNAME, STATE) %>%
+      group_by(GEOID, STATE) %>%
       summarise(
         total_injuries = n(),
         .groups = "drop"
       )
       
     
-    filtered_counties = counties_sf
-    if (!is.null(input$state) && input$state != "all") {
-      filtered_counties = counties_sf %>%
+    filtered_state = state_sf %>%
         filter(STUSPS == input$state)
-    }
     
-    joined_data = filtered_counties %>%
-      left_join(agg_data, by = "GEOID")
+    joined_data = filtered_state %>%
+      left_join(agg_data, by = "STATE")
     return(joined_data)
   })
   
@@ -200,11 +163,11 @@ server <- function(input, output, session) {
       na.color = "transparent"
     )
     
-    # County-level labels
+    # State-level labels
     labels = sprintf(
-      "<strong>%s County</strong><br/>
+      "<strong>%s State </strong><br/>
         Total Injuries: %g<br/>",
-      map_df$NAME,
+      map_df$STATE,
       map_df$total_injuries
     ) %>% lapply(htmltools::HTML)
     
@@ -214,10 +177,10 @@ server <- function(input, output, session) {
       addProviderTiles("Esri.WorldGrayCanvas") %>%
       addPolygons(
         fillColor = ~pal(total_injuries),
-        weight = ifelse(map_df$COUNTYNAME == input$county, 3, 1),
+        weight = ifelse(map_df$STATE == input$state, 3, 1),
         opacity = 1,
         color = "#FFFFFF",
-        fillOpacity = ifelse(map_df$COUNTYNAME == input$county, 1, 0.5),
+        fillOpacity = ifelse(map_df$STATE == input$state, 1, 0.5),
         highlightOptions = highlightOptions(
           weight = 1.5,
           fillOpacity = 0.75,
@@ -247,11 +210,11 @@ server <- function(input, output, session) {
     filtered_nar = filtered_data()
     
     narratives <- filtered_nar %>%
-      select(`Narrative Description` = NEW_NAR_WHAT_HAPPENED, 
-             `County` = COUNTYNAME,
+      select(
              `State` = STATE,
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
+             `Narrative Description` = NEW_NAR_WHAT_HAPPENED, 
              `Establishment` = establishment_name,
              `Company` = company_name,
              `Establishment Incidence Rate (per 100 FTE)` = incidence)
@@ -278,15 +241,13 @@ server <- function(input, output, session) {
           `Incident Location` = NEW_INCIDENT_LOCATION,
           `Occupation` = soc_description,
           `Address` = arcgis_address,
-          `County` = COUNTYNAME,
           `State` = STATE,
           `Zip Code` = zip_code,
           `Industry` = naics_title_2digits,
           `Detailed Industry` = naics_title_6digits,
           `Establishment` = establishment_name,
           `Company` = company_name,
-          `Establishment Incidence Rate (per 100 FTE)` = incidence
-        )
+          `Establishment Incidence Rate (per 100 FTE)` = incidence)
       
       write.csv(narratives, file, row.names = FALSE)
     }
