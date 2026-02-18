@@ -1,13 +1,11 @@
 library(shiny)
 library(readr)
-library(bslib)
 library(leaflet)
 library(dplyr)
 library(DT)
 library(sf)
 library(tigris)
 library(shinythemes)
-library(ggplot2)
 
 # Load your data
 data = readRDS("ITA_FIPS.rds")
@@ -26,10 +24,10 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                    h4("Filter Options"),
                    selectInput("state", 
                                "Select State to start:",
-                               choices = c("", sort(unique(data$STATE))),
-                               selected = ""),
+                               choices = c("All" = "all", sort(unique(data$state))),
+                               selected = "all"),
                    selectInput("industry", "Filter by Industry (optional):", 
-                               choices = c("All Industries" = "all"),
+                               choices = c("All Industries" = "all", sort(unique(data$naics_title_2digits))),
                                selected = "all"),
                    hr(),
                    a("See full US dashboard", href = "https://23-work-injury-us.share.connect.posit.cloud/", target = "_blank"),
@@ -62,9 +60,9 @@ ui = fluidPage(theme = shinytheme("sandstone"),
 server <- function(input, output, session) {
   
   
-  observeEvent({
-    input$state
-  }, {choices2 = data %>%
+  observeEvent(input$state, {
+    if (!is.null(input$state) && input$state != "all") 
+      {choices2 = data %>%
         filter(STATE == input$state) %>%
         distinct(naics_title_2digits) %>%
         arrange(naics_title_2digits) %>%
@@ -75,7 +73,8 @@ server <- function(input, output, session) {
         choices = c("All Industries" = "all", as.list(choices2)),
         selected = "all"
       )
-  })
+    }
+    })
   
   
   # Reactive data filtering
@@ -83,7 +82,7 @@ server <- function(input, output, session) {
     filtered = data
     
     if (!is.null(input$state) && input$state != "all") {
-      filtered <- filtered %>% filter(STATE == input$state)
+      filtered <- filtered %>% filter(state == input$state)
     }
     
     
@@ -129,30 +128,23 @@ server <- function(input, output, session) {
   })
   
   map_data <- reactive({
-    agg_data = data
-    if(!is.null(input$industry) && input$industry != "all") {
-      agg_data = agg_data %>%
-        filter(naics_title_2digits == input$industry)}
-    
-    agg_data = agg_data %>%
-      filter(STATE == input$state)%>%
-      group_by(GEOID, STATE) %>%
+    agg_data = data %>%
+      group_by(state) %>%
       summarise(
         total_injuries = n(),
         .groups = "drop"
       )
-      
     
-    filtered_state = state_sf %>%
-        filter(STUSPS == input$state)
+    joined_data = state_sf %>%
+      left_join(agg_data, join_by ("STUSPS" == "state"))
     
-    joined_data = filtered_state %>%
-      left_join(agg_data, by = "STATE")
+    if (!is.null(input$state) && input$state != "all")
+    {filtered_state = state_sf %>% filter(STUSPS == input$state)}
+    
     return(joined_data)
   })
   
   output$injury_map = renderLeaflet({
-    req(input$state)
     map_df = map_data()
     
     # Color palette
@@ -167,7 +159,7 @@ server <- function(input, output, session) {
     labels = sprintf(
       "<strong>%s State </strong><br/>
         Total Injuries: %g<br/>",
-      map_df$STATE,
+      map_df$NAME,
       map_df$total_injuries
     ) %>% lapply(htmltools::HTML)
     
@@ -177,10 +169,10 @@ server <- function(input, output, session) {
       addProviderTiles("Esri.WorldGrayCanvas") %>%
       addPolygons(
         fillColor = ~pal(total_injuries),
-        weight = ifelse(map_df$STATE == input$state, 3, 1),
+        weight = ifelse(map_df$STUSPS == input$state, 3, 1),
         opacity = 1,
         color = "#FFFFFF",
-        fillOpacity = ifelse(map_df$STATE == input$state, 1, 0.5),
+        fillOpacity = ifelse(map_df$STUSPS == input$state, 1, 0.5),
         highlightOptions = highlightOptions(
           weight = 1.5,
           fillOpacity = 0.75,
@@ -211,7 +203,7 @@ server <- function(input, output, session) {
     
     narratives <- filtered_nar %>%
       select(
-             `State` = STATE,
+             `State` = NAME,
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
              `Narrative Description` = NEW_NAR_WHAT_HAPPENED, 
@@ -226,7 +218,7 @@ server <- function(input, output, session) {
   
   output$download_narratives <- downloadHandler(
     filename = function() {
-      paste0("injuries", "_", gsub(" ", " ", input$industry),"_", gsub(" ", " ", input$county), ".csv")
+      paste0("injuries", "_", gsub(" ", " ", input$industry),"_", gsub(" ", " ", input$state), ".csv")
     },
     content = function(file) {
       download_data = search_filter()
@@ -241,7 +233,7 @@ server <- function(input, output, session) {
           `Incident Location` = NEW_INCIDENT_LOCATION,
           `Occupation` = soc_description,
           `Address` = arcgis_address,
-          `State` = STATE,
+          `State` = NAME,
           `Zip Code` = zip_code,
           `Industry` = naics_title_2digits,
           `Detailed Industry` = naics_title_6digits,
