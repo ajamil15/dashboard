@@ -6,7 +6,7 @@ library(sf)
 library(tigris)
 
 
-#data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
+data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
 #data2 = read_csv("/Users/aliajamil/Desktop/r/work/ITACaseDetail.csv")
 #requires geocoded dataset ^
 
@@ -14,7 +14,7 @@ counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
 state_sf = states(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
 
 #subset necessary columns
-data = data[, c(6,8,11:12,18:19, 23, 37:43, 116, 119, 121,178)]
+data = data[, c(6,8,11:13, 18:19, 22:23, 37:43, 116, 119, 121,178)]
 #cross = read_csv("/Users/aliajamil/Desktop/r/work/ZIP-COUNTY-FIPS_2017-06.csv")
 
 #get counties
@@ -24,17 +24,18 @@ county_fips <- cross %>%
 final = left_join(data, county_fips, by = c("GEOID" = "STCOUNTYFP"))
 
 #correct
-agg_data = agg_data %>%
-  filter(STATE == input$state)%>%
-  group_by(GEOID, STATE) %>%
+agg_data = data %>%
+  group_by(GEOID, state) %>%
   summarise(
     total_injuries = n(),
     .groups = "drop"
   )
-filtered_state = state_sf %>%
-  filter(STUSPS == input$state)
-joined_data = filtered_state %>%
-  left_join(agg_data, by = "STATE")
+
+#if, filtered_state = state_sf %>% filter(STUSPS == input$state)
+
+joined_data = state_sf %>%
+  left_join(agg_data, join_by ("STUSPS" == "state"))
+#NAME column for labels
 
 #replace missing values
 x = final %>%
@@ -68,9 +69,14 @@ final = final %>%
 
 #write data file
 write.csv(final, 'ITA_FIPS.csv', row.names = FALSE)
-final = read_csv("ITA_FIPS.csv")
+final = read_rds("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
 #code testing
+county_name = final %>%
+  filter(GEOID == 42091) %>%
+  distinct(COUNTYNAME) %>%
+  pull(COUNTYNAME)
+
 choices = data %>%
   filter(state == "NJ") %>%
   distinct(COUNTYNAME) %>%

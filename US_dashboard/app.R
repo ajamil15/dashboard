@@ -93,12 +93,16 @@ server <- function(input, output, session) {
   })
   
   output$active_filters <- renderUI({
+    if (!is.null(selectedcounty()) && length(selectedcounty()) > 0){county_name = data %>%
+      filter(GEOID == selectedcounty()) %>%
+      distinct(COUNTYNAME) %>%
+      pull(COUNTYNAME)}
     tags$div(
       style = "background:#f8f9fa; padding:10px; border-radius:5px;",
       strong("Current Filters: "),
       tags$ul(
         if (length(selectedcounty()))
-          tags$li(paste("County:", paste(selectedcounty(), collapse = ", "))),
+          tags$li(paste("County:", paste(county_name, collapse = ", "))),
         if (length(input$industry))
           tags$li(paste("Industry:", paste(input$industry, collapse = ", ")))
       )
@@ -275,7 +279,8 @@ server <- function(input, output, session) {
              `Establishment` = establishment_name,
              `Establishment Incidence Rate (per 100 FTE)` = incidence)
     
-    datatable(narratives, 
+    datatable(narratives,
+              filter = "top",
               options = list(pageLength = 10, scrollY = "400px"), 
               rownames = FALSE)
   }, server = TRUE)
