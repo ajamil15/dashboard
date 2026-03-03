@@ -7,41 +7,44 @@ library(tigris)
 
 
 data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
+updated = read_csv("/Users/aliajamil/Desktop/r/work/Updated.csv")
 #data2 = read_csv("/Users/aliajamil/Desktop/r/work/ITACaseDetail.csv")
 #requires geocoded dataset ^
 
 counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
 state_sf = states(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
+cross = read_csv("/Users/aliajamil/Desktop/r/work/ZIP-COUNTY-FIPS_2017-06.csv")
 
-#subset necessary columns
-data = data[, c(6,8,11:13, 18:19, 22:23, 37:43, 116, 119, 121,178)]
-#cross = read_csv("/Users/aliajamil/Desktop/r/work/ZIP-COUNTY-FIPS_2017-06.csv")
+data %>% summarise(across(everything(), ~n_distinct(.)/n()))
 
-#get counties
-county_fips <- cross %>%
-  select(STCOUNTYFP, COUNTYNAME, STATE) %>%
-  distinct() 
-final = left_join(data, county_fips, by = c("GEOID" = "STCOUNTYFP"))
+a = unique(data$establishment_id)
+b = unique(updated$establishment_id)
+i = intersect(a, b)
 
-#correct
-agg_data = data %>%
-  group_by(GEOID, state) %>%
-  summarise(
-    total_injuries = n(),
-    .groups = "drop"
-  )
+d = data[, c(5, 178)]
+d = d %>%
+  distinct()
+  #mutate(identifier = paste(street_address, city, state, zip_code, sep = "_"))
 
-#if, filtered_state = state_sf %>% filter(STUSPS == input$state)
+final = left_join(updated, d, by = "establishment_id")
 
-joined_data = state_sf %>%
-  left_join(agg_data, join_by ("STUSPS" == "state"))
-#NAME column for labels
+na = final %>%
+  filter(is.na(GEOID))
+
+unique(na$establishment_name)
 
 #replace missing values
-x = final %>%
-  filter(is.na(final$GEOID))
-unique(x$zip_code)
+zips = unique(na$zip_code)
+c = cross %>%
+  filter(ZIP %in% zips) 
+count_c = c %>%
+  count(ZIP)
+c = c [,c(1,4)]
+test = left_join(na, c, by = c("zip_code" = "ZIP"))
+  
 
+
+#not updated
 cross %>% filter(ZIP == "")
 final = final %>%
   mutate(GEOID = case_when(
@@ -68,10 +71,25 @@ final = final %>%
   filter(!state %in% c)
 
 #write data file
-write.csv(final, 'ITA_FIPS.csv', row.names = FALSE)
+?write_rds
+write_rds(final, 'ITA_FIPS.rds')
 final = read_rds("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
+
 #code testing
+#correct
+agg_data = data %>%
+  group_by(GEOID, state) %>%
+  summarise(
+    total_injuries = n(),
+    .groups = "drop"
+  )
+
+#if, filtered_state = state_sf %>% filter(STUSPS == input$state)
+
+joined_data = state_sf %>%
+  left_join(agg_data, join_by ("STUSPS" == "state"))
+#NAME column for labels
 county_name = final %>%
   filter(GEOID == 42091) %>%
   distinct(COUNTYNAME) %>%
@@ -177,7 +195,7 @@ data2$zip_code = as.character(data2$zip_code)
 unique(nchar(data2$zip_code))
 
 eight_seven = data %>%
-  filter(nchar(data$zip_code) > 6)
+  filter(nchar(data$zip_code) < 6)
 list = unique(eight_seven$zip_code)
 
 
