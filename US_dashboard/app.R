@@ -17,18 +17,18 @@ counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
   st_simplify(dTolerance = 500)
 
 # UI
+#make it look nicer
 ui = fluidPage(theme = shinytheme("sandstone"),
                titlePanel("County-Level Map of Workplace Injuries (2023)"),
                sidebarLayout(
                  sidebarPanel(
-                   width = 3,
+                   width = 2,
                    actionButton(
                      "clear_filters",
                      "Clear All Filters",
                      icon = icon("eraser"),
                      class = "btn-danger"
                    ),
-                   h4("Click a County to start"),
                    selectizeInput(
                      "industry",
                      "Select Industry(s)",
@@ -37,25 +37,25 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                      options = list(
                        placeholder = "All industries"
                      )
-                   ),
+                     ),
+                   selectizeInput("state", 
+                               "Select State(s)",
+                               choices = c(sort(unique(data$STATE))),
+                               multiple = TRUE,
+                               options = list(
+                                 placeholder = "Entire country"
+                               )
+                               ),
+                   p(strong("Click a County to select")),
                    hr(),
-                   a("See State by State dashboard", href = "https://23-work-injury-state.share.connect.posit.cloud/", target = "_blank"),
-                   br(),
-                   wellPanel(
-                     strong("Rate Calculation per Establishment:"),
-                     "(Count of injuries and illnesses X 200,000) / Employee hours worked reported to ITA = Incidence Rate"
-                   ),
-                   br(),
-                   wellPanel(
-                     strong("Data Source:"),
-                     "This dashboard is based on the 2023 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
-                     a(" View data", href = "https://www.osha.gov/Establishment-Specific-Injury-and-Illness-Data", target = "_blank")
-                   ),
+                   p(strong("Data Source:")),
+                   p("This dashboard is based on the 2023 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
+                     a(" View data", href = "https://www.osha.gov/Establishment-Specific-Injury-and-Illness-Data", target = "_blank")),
                    br(),
                    p(em("For questions, contact Alia Jamil (ajamil@gwu.edu)"))
                  ),
                  
-                 mainPanel(
+                 mainPanel(width = 10,
                    uiOutput("active_filters"),
                    tabsetPanel(
                      tabPanel("County-level Map", 
@@ -63,22 +63,25 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                               br(),
                               DTOutput("narrative_table"),
                               br(),
-                              helpText("Note: search feature for table only. Download this data and more detailed information, including all injury narratives, occupation, and company name."),
+                              helpText("Note: search feature for table only. Download this data and more detailed information, including all injury narratives."),
                               downloadButton("download_narratives", "Download Detailed Data", class = "btn-primary")),
                      tabPanel("Data Information",
                               fluidRow(
                                 column(
                                   width = 8,
                                   h3("Data Limitations"),
-                                  p(
-                                    "Injury counts are the total injuries per geographic area. Establishment rates are calculated using: (Count of injuries and illnesses X 200,000) / Employee hours worked reported to ITA = Incidence Rate. Rates are based on reported data and may inaccurately represent injury burden."
+                                  p("This data is limited to what employers report. This only includes large employers (100+ employees).
+Mining, industries exempt from routine OSHA record-keeping, low-hazard industries, commuting injuries,
+federal agencies, state and local government in states with no OSHA plans, most occupational fatalities,
+and businesses closed before the electronic reporting deadline are not required to report."
+                                    ),
+                                  p("Injury counts are the total injuries per geographic area. Establishment rates are calculated using: (Count
+of injuries and illnesses X 200,000) / Employee hours worked reported to ITA = Incidence Rate. Rates are
+based on reported data and may inaccurately represent injury burden."
                                   ),
-                                  p(
-                                    "This data is limited to what employers report. This only includes large employers (100+ employees). Mining, industries exempt from routine OSHA record-keeping, low-hazard industries, commuting injuries, federal agencies, state and local government, most occupational fatalities, and businesses closed before the electronic reporting deadline  are excluded. "
+                                  p("Data will download in CSV format, which can be opened and further explored in Excel, R, or other
+software. An establishment is a single workplace. A company can have several establishments. Company names may not be standardized across the dataset."
                                   ),
-                                  p(
-                                    "Download this data and more detailed information, including all injury narratives, occupation, and injury code. Data will download in CSV format, which can be opened and further explored in Excel, R, or other software. An establishment is a single workplace. A company can have several establishments."
-                                  )
                                 )
                               )
                      )))))
@@ -86,25 +89,46 @@ ui = fluidPage(theme = shinytheme("sandstone"),
 
 #server
 server <- function(input, output, session) {
-
+  
+  selectedcounty = reactiveVal(character(0))
+  
+  observeEvent(input$injury_map_shape_click, {
+    clicked_geoid <- input$injury_map_shape_click$id
+    current <- selectedcounty()
+    
+    if (clicked_geoid %in% current) {
+      selectedcounty(setdiff(current, clicked_geoid))
+    } else {
+      selectedcounty(c(current, clicked_geoid))
+    }
+  })
+  
+  county_name <- reactive({
+    req(selectedcounty())
+    
+    data %>%
+      filter(GEOID %in% selectedcounty()) %>%
+      distinct(COUNTYNAME) %>%
+      pull(COUNTYNAME)
+  })
+  
   observeEvent(input$clear_filters, {
     selectedcounty(character(0))
     updateSelectizeInput(session, "industry", selected = character(0))
+    updateSelectizeInput(session, "state", selected = character(0))
   })
   
   output$active_filters <- renderUI({
-    if (!is.null(selectedcounty()) && length(selectedcounty()) > 0){county_name = data %>%
-      filter(GEOID == selectedcounty()) %>%
-      distinct(COUNTYNAME) %>%
-      pull(COUNTYNAME)}
     tags$div(
       style = "background:#f8f9fa; padding:10px; border-radius:5px;",
       strong("Current Filters: "),
       tags$ul(
         if (length(selectedcounty()))
-          tags$li(paste("County:", paste(county_name, collapse = ", "))),
+          tags$li(paste("County:", paste(county_name(), collapse = ", "))),
         if (length(input$industry))
-          tags$li(paste("Industry:", paste(input$industry, collapse = ", ")))
+          tags$li(paste("Industry:", paste(input$industry, collapse = ", "))),
+        if (length(input$state))
+          tags$li(paste("State:", paste(input$state, collapse = ", ")))
       )
     )
   })
@@ -125,7 +149,10 @@ server <- function(input, output, session) {
     agg_data = data
     if(!is.null(input$industry) && length(input$industry) > 0) {
       agg_data = agg_data %>%
-        filter(naics_title_2digits == input$industry)}
+        filter(naics_title_2digits %in% input$industry)}
+    if (!is.null(input$state) && length(input$state)>0) {
+      agg_data = agg_data %>% filter(STATE %in% input$state)
+    }
     
     agg_data = agg_data %>%
       group_by(GEOID, COUNTYNAME, STATE) %>%
@@ -139,19 +166,11 @@ server <- function(input, output, session) {
     return(joined_data)
   })
   
-  selectedcounty = reactiveVal(character(0))
   
   output$injury_map = renderLeaflet({
     map_df = map_data()
     
-    popup_text = sprintf(
-      "<strong>%s County,</strong><br/>
-    <strong>%s</strong><br/>
-    Total Injuries: %g<br/>",
-      map_df$NAME,
-      map_df$STATE_NAME,
-      map_df$total_injuries
-    )
+    popup_text = labels()
     
     # Color palette
     pal = colorNumeric(
@@ -160,7 +179,6 @@ server <- function(input, output, session) {
       na.color = "transparent",
       reverse = TRUE
     )
-    
     
     map  = leaflet(map_df) %>%
       setView(-98.7, 39.8, zoom = 4) %>%
@@ -198,22 +216,6 @@ server <- function(input, output, session) {
   })
   
   
-  
-  observeEvent(input$injury_map_shape_click, {
-               clicked_geoid <- input$injury_map_shape_click$id
-               current <- selectedcounty()
-               
-               if (clicked_geoid %in% current) {
-                 selectedcounty(setdiff(current, clicked_geoid))
-               } else {
-                 selectedcounty(c(current, clicked_geoid))
-               }
-  })
-  
-  observeEvent(input$deselect_county, {
-    selectedcounty(character(0))
-  })
-  
   filtered_data = reactive({
     filtered = data
     
@@ -221,6 +223,10 @@ server <- function(input, output, session) {
     if (!is.null(selectedcounty()) && length(selectedcounty()) > 0){
       filtered <- filtered %>% 
         filter(GEOID %in% selectedcounty())
+    }
+    
+    if (!is.null(input$state) && length(input$state) > 0) {
+      filtered <- filtered %>% filter(STATE %in% input$state)
     }
     
     if (!is.null(input$industry) && length(input$industry) > 0) {
@@ -234,31 +240,6 @@ server <- function(input, output, session) {
              incidence_calc = ifelse(total_hours_worked > 0, (total_injuries * 200000) / total_hours_worked, NA),
              incidence = round(incidence_calc, digits = 2)) %>%
       ungroup()
-    
-    return(filtered)
-  })
-  
-  search_filter = reactive ({
-    filtered = filtered_data()
-    
-    search_term = input$narrative_table_search
-    
-    if (!is.null(search_term) && search_term != "") {
-      search <- tolower(search_term)
-      
-      filtered = filtered %>%
-        filter(
-          grepl(search, tolower(NEW_NAR_WHAT_HAPPENED)) |
-            grepl(search, tolower(NEW_NAR_INJURY_ILLNESS)) |
-            grepl(search, tolower(NEW_INCIDENT_DESCRIPTION)) |
-            grepl(search, tolower(NEW_NAR_OBJECT_SUBSTANCE)) |
-            grepl(search, tolower(NEW_NAR_BEFORE_INCIDENT)) |
-            grepl(search, tolower(NEW_INCIDENT_LOCATION)) |
-            grepl(search, tolower(zip_code)) |
-            grepl(search, tolower(establishment_name))|
-            grepl(search, tolower(company_name))
-        )
-    }
     
     return(filtered)
   })
@@ -287,12 +268,13 @@ server <- function(input, output, session) {
   
   output$download_narratives <- downloadHandler(
     filename = function() {
-      paste0("injuries", "_", gsub(" ", " ", input$industry),"_", gsub(" ", " ", selectedcounty()), ".csv")
+      paste0("OSHA_ITA_injuries.csv")
+      #fix naming
     },
     content = function(file) {
-      download_data = search_filter()
+      filtered_rows <- input$narrative_table_rows_all
       
-      narratives <- download_data %>%
+      narratives <- filtered_data() %>%
         select(
           `Address` = arcgis_address,
           `County` = COUNTYNAME,
@@ -311,8 +293,8 @@ server <- function(input, output, session) {
           `Company` = company_name,
           `Establishment Incidence Rate (per 100 FTE)` = incidence)
       
-      write.csv(narratives, file, row.names = FALSE)
-    }
-  )}
+      write.csv(narratives[filtered_rows, ], file, row.names = FALSE)
+    })
+  }
 
 shinyApp(ui = ui, server = server)
