@@ -189,7 +189,7 @@ data = read_csv("ITA_FIPS.csv")
   
   
 #zipcode fix
-  data2 = readRDS("State_Dashboard/ITA_FIPS.rds")
+  data2 = readRDS("ITA_FIPS.rds")
 
 data2$zip_code = as.character(data2$zip_code)
 
@@ -227,6 +227,6 @@ data2 = data2 %>%
 
 unique(nchar(data2$zip_code))
 
-saveRDS(data2, "ITA_FIPS.rds")
+saveRDS(ITA_FIPS, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
 
