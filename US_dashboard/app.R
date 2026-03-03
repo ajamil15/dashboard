@@ -295,6 +295,6 @@ server <- function(input, output, session) {
       
       write.csv(narratives[filtered_rows, ], file, row.names = FALSE)
     })
-  }
+  } 
 
 shinyApp(ui = ui, server = server)
