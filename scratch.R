@@ -24,6 +24,7 @@ i = intersect(a, b)
 d = data[, c(5, 178)]
 d = d %>%
   distinct()
+
   #mutate(identifier = paste(street_address, city, state, zip_code, sep = "_"))
 
 final = left_join(updated, d, by = "establishment_id")
