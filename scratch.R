@@ -71,7 +71,7 @@ final = final %>%
   filter(!state %in% c)
 
 #write data file
-?write_rds
+final = final [, c(3, 5, 9:10, 12, 15:16, 20, 34:39, 41, 43, 45, 50)]
 write_rds(final, 'ITA_FIPS.rds')
 final = read_rds("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
