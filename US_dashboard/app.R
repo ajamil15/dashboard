@@ -11,13 +11,8 @@ library(shinythemes)
 # Load your data
 data = readRDS("ITA_FIPS.rds")
 
-# Load shapefiles
-counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
-  st_transform(crs = 4326) %>%
-  st_simplify(dTolerance = 500)
 
 # UI
-#make it look nicer
 ui = fluidPage(theme = shinytheme("sandstone"),
                titlePanel("County-Level Map of Workplace Injuries (2023)"),
                sidebarLayout(
@@ -40,7 +35,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                      ),
                    selectizeInput("state", 
                                "Select State(s)",
-                               choices = c(sort(unique(data$STATE))),
+                               choices = c(sort(unique(data$STUSPS))),
                                multiple = TRUE,
                                options = list(
                                  placeholder = "Entire country"
@@ -108,8 +103,8 @@ server <- function(input, output, session) {
     
     data %>%
       filter(GEOID %in% selectedcounty()) %>%
-      distinct(COUNTYNAME) %>%
-      pull(COUNTYNAME)
+      distinct(NAMELSAD) %>%
+      pull(NAMELSAD)
   })
   
   observeEvent(input$clear_filters, {
@@ -136,10 +131,10 @@ server <- function(input, output, session) {
   labels = reactive({ 
     map_df = map_data()
     sprintf(
-      "<strong>%s County,</strong><br/>
+      "<strong>%s</strong><br/>
       <strong>%s</strong><br/>
         Total Injuries: %g",
-      map_df$NAME,
+      map_df$NAMELSAD,
       map_df$STATE_NAME,
       map_df$total_injuries
     ) %>% lapply(htmltools::HTML)})
@@ -151,19 +146,25 @@ server <- function(input, output, session) {
       agg_data = agg_data %>%
         filter(naics_title_2digits %in% input$industry)}
     if (!is.null(input$state) && length(input$state)>0) {
-      agg_data = agg_data %>% filter(STATE %in% input$state)
+      agg_data = agg_data %>% filter(STUSPS %in% input$state)
     }
     
     agg_data = agg_data %>%
-      group_by(GEOID, COUNTYNAME, STATE) %>%
+      st_drop_geometry() %>%
+      group_by(GEOID) %>%
       summarise(
         total_injuries = n(),
         .groups = "drop"
       )
     
-    joined_data = counties_sf %>%
-      left_join(agg_data, by = "GEOID")
-    return(joined_data)
+    merged = merge(
+      counties_sf %>% select(GEOID, NAMELSAD, STUSPS, STATE_NAME, geometry),
+      agg_data,
+      by = "GEOID",
+      all.x = FALSE
+    )
+    
+    return(merged)
   })
   
   
@@ -226,7 +227,7 @@ server <- function(input, output, session) {
     }
     
     if (!is.null(input$state) && length(input$state) > 0) {
-      filtered <- filtered %>% filter(STATE %in% input$state)
+      filtered <- filtered %>% filter(STUSPS %in% input$state)
     }
     
     if (!is.null(input$industry) && length(input$industry) > 0) {
@@ -251,8 +252,8 @@ server <- function(input, output, session) {
     filtered_nar = filtered_data()
     
     narratives <- filtered_nar %>%
-      select(`State` = STATE,
-             `County` = COUNTYNAME,
+      select(`State` = STUSPS,
+             `County` = NAMELSAD,
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
              `Narrative Description` = NEW_NAR_WHAT_HAPPENED,
@@ -277,8 +278,8 @@ server <- function(input, output, session) {
       narratives <- filtered_data() %>%
         select(
           `Address` = arcgis_address,
-          `County` = COUNTYNAME,
-          `State` = STATE,
+          `County` = NAMELSAD,
+          `State` = STUSPS,
           `Zip Code` = zip_code,
           `Before Incident` = NEW_NAR_BEFORE_INCIDENT,
           `What Happened` = NEW_NAR_WHAT_HAPPENED,

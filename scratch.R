@@ -4,16 +4,23 @@ library(dplyr)
 library(DT)
 library(sf)
 library(tigris)
+library(stringr)
 
-
-data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
+#data
+data = readRDS("/Users/aliajamil/Desktop/r/work/old_ITA_FIPS.rds")
 updated = read_csv("/Users/aliajamil/Desktop/r/work/Updated.csv")
 #data2 = read_csv("/Users/aliajamil/Desktop/r/work/ITACaseDetail.csv")
 #requires geocoded dataset ^
 
-counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
+counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
+  st_transform(crs = 4326) %>%
+  st_simplify(dTolerance = 500)
+
+names(counties_sf)
+
 state_sf = states(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
 cross = read_csv("/Users/aliajamil/Desktop/r/work/ZIP-COUNTY-FIPS_2017-06.csv")
+
 
 data %>% summarise(across(everything(), ~n_distinct(.)/n()))
 
@@ -25,11 +32,30 @@ d = data[, c(5, 178)]
 d = d %>%
   distinct()
 
-  #mutate(identifier = paste(street_address, city, state, zip_code, sep = "_"))
+geo = left_join(updated, d, by = "establishment_id")
 
-final = left_join(updated, d, by = "establishment_id")
+#county data
+joined_data = left_join(geo, counties_sf, by = "GEOID")
 
-na = final %>%
+#recreate naics
+naics = data[ , c(120:121)]
+naics = naics %>%
+  distinct() %>%
+  drop_na()
+  
+joined_data = joined_data %>%
+  mutate(naics_code_2digits = str_sub(naics_code, end = 2) )
+joined_data$naics_code_2digits = as.numeric(joined_data$naics_code_2digits)
+
+final = left_join(joined_data, naics, by = "naics_code_2digits")
+  
+#write data file
+final_copy = final [, c(3, 5, 9, 15:16, 20, 34:39, 41, 43, 45, 50, 56:58, 62, 64)]
+saveRDS(final_copy, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
+
+data = readRDS("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
+
+na = geo %>%
   filter(is.na(GEOID))
 
 unique(na$establishment_name)
@@ -42,8 +68,6 @@ count_c = c %>%
   count(ZIP)
 c = c [,c(1,4)]
 test = left_join(na, c, by = c("zip_code" = "ZIP"))
-  
-
 
 #not updated
 cross %>% filter(ZIP == "")
@@ -71,10 +95,6 @@ c = c("VI", "GU", "MP", "AS")
 final = final %>%
   filter(!state %in% c)
 
-#write data file
-final = final [, c(3, 5, 9:10, 12, 15:16, 20, 34:39, 41, 43, 45, 50)]
-write_rds(final, 'ITA_FIPS.rds')
-final = read_rds("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
 
 #code testing
@@ -226,7 +246,4 @@ data2 = data2 %>%
     TRUE ~ zip_code))
 
 unique(nchar(data2$zip_code))
-
-saveRDS(ITA_FIPS, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
-
 
