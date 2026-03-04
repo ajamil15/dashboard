@@ -10,6 +10,9 @@ library(shinythemes)
 
 # Load your data
 data = readRDS("ITA_FIPS.rds")
+counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
+  st_transform(crs = 4326) %>%
+  st_simplify(dTolerance = 500)
 
 
 # UI
@@ -157,14 +160,9 @@ server <- function(input, output, session) {
         .groups = "drop"
       )
     
-    merged = merge(
-      counties_sf %>% select(GEOID, NAMELSAD, STUSPS, STATE_NAME, geometry),
-      agg_data,
-      by = "GEOID",
-      all.x = FALSE
-    )
+    joined_data = left_join(agg_data, counties_sf, by = "GEOID")
     
-    return(merged)
+    return(joined_data)
   })
   
   
