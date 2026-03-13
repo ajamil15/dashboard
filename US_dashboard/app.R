@@ -160,7 +160,7 @@ server <- function(input, output, session) {
         .groups = "drop"
       )
     
-    joined_data = left_join(agg_data, counties_sf, by = "GEOID")
+    joined_data = left_join(counties_sf, agg_data, by = "GEOID")
     
     return(joined_data)
   })
@@ -255,9 +255,11 @@ server <- function(input, output, session) {
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
              `Narrative Description` = NEW_NAR_WHAT_HAPPENED,
+             `Nature of Injury` = nature_title_pred,
              `Company` = company_name,
              `Establishment` = establishment_name,
-             `Establishment Incidence Rate (per 100 FTE)` = incidence)
+             `Establishment Incidence Rate (per 100 FTE)` = incidence,
+             )
     
     datatable(narratives,
               filter = "top",
@@ -268,14 +270,13 @@ server <- function(input, output, session) {
   output$download_narratives <- downloadHandler(
     filename = function() {
       paste0("OSHA_ITA_injuries.csv")
-      #fix naming
+
     },
     content = function(file) {
       filtered_rows <- input$narrative_table_rows_all
       
       narratives <- filtered_data() %>%
         select(
-          `Address` = arcgis_address,
           `County` = NAMELSAD,
           `State` = STUSPS,
           `Zip Code` = zip_code,
@@ -285,9 +286,11 @@ server <- function(input, output, session) {
           `Object/Substance` = NEW_NAR_OBJECT_SUBSTANCE,
           `Incident Description` = NEW_INCIDENT_DESCRIPTION,
           `Incident Location` = NEW_INCIDENT_LOCATION,
+          `Nature of Injury` = nature_title_pred,
+          `Part of Body` = part_title_pred,
+          `Event or Exposure` = nature_title_pred,
           `Occupation` = soc_description,
           `Industry` = naics_title_2digits,
-          `Detailed Industry` = naics_title_6digits,
           `Establishment` = establishment_name,
           `Company` = company_name,
           `Establishment Incidence Rate (per 100 FTE)` = incidence)
