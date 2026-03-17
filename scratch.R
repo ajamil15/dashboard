@@ -43,14 +43,14 @@ naics = naics %>%
   distinct() %>%
   drop_na()
   
-joined_data = joined_data %>%
+geo = geo %>%
   mutate(naics_code_2digits = str_sub(naics_code, end = 2) )
-joined_data$naics_code_2digits = as.numeric(joined_data$naics_code_2digits)
+geo$naics_code_2digits = as.numeric(geo$naics_code_2digits)
 
-final = left_join(joined_data, naics, by = "naics_code_2digits")
+final = left_join(geo, naics, by = "naics_code_2digits")
   
 #write data file
-final_copy = final [, c(3, 5, 9, 15:16, 20, 34:39, 41, 43, 45, 50, 56:58, 62, 64)]
+final_copy = final [, c(3, 5, 9:10, 52, 16, 20, 34:39, 41, 43, 45, 47, 49:50)]
 saveRDS(final_copy, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
 data = readRDS("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
@@ -98,6 +98,9 @@ final = final %>%
 
 
 #code testing
+
+
+
 #correct
 agg_data = data %>%
   group_by(GEOID, state) %>%

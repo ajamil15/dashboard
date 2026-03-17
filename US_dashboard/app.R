@@ -14,6 +14,11 @@ counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
   st_transform(crs = 4326) %>%
   st_simplify(dTolerance = 500)
 
+counties_subset = counties_sf [, c(5,7:8)]
+data = data %>%
+  left_join(counties_subset, by = "GEOID")
+
+
 
 # UI
 ui = fluidPage(theme = shinytheme("sandstone"),
@@ -67,7 +72,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                               fluidRow(
                                 column(
                                   width = 8,
-                                  h3("Data Limitations"),
+                                  h3("Data Information"),
                                   p("This data is limited to what employers report. This only includes large employers (100+ employees).
 Mining, industries exempt from routine OSHA record-keeping, low-hazard industries, commuting injuries,
 federal agencies, state and local government in states with no OSHA plans, most occupational fatalities,
@@ -153,7 +158,6 @@ server <- function(input, output, session) {
     }
     
     agg_data = agg_data %>%
-      st_drop_geometry() %>%
       group_by(GEOID) %>%
       summarise(
         total_injuries = n(),
@@ -240,6 +244,7 @@ server <- function(input, output, session) {
              incidence = round(incidence_calc, digits = 2)) %>%
       ungroup()
     
+    
     return(filtered)
   })
   
@@ -253,12 +258,13 @@ server <- function(input, output, session) {
       select(`State` = STUSPS,
              `County` = NAMELSAD,
              `Zip Code` = zip_code,
+             `Industry Code` = naics_code,
              `Industry` = naics_title_2digits,
              `Narrative Description` = NEW_NAR_WHAT_HAPPENED,
              `Nature of Injury` = nature_title_pred,
              `Company` = company_name,
              `Establishment` = establishment_name,
-             `Establishment Incidence Rate (per 100 FTE)` = incidence,
+             `Establishment Incidence Rate (per 100 FTE)` = incidence
              )
     
     datatable(narratives,
@@ -288,8 +294,10 @@ server <- function(input, output, session) {
           `Incident Location` = NEW_INCIDENT_LOCATION,
           `Nature of Injury` = nature_title_pred,
           `Part of Body` = part_title_pred,
-          `Event or Exposure` = nature_title_pred,
+          `Event or Exposure` = event_title_pred,
+          `Source` = source_title_pred,
           `Occupation` = soc_description,
+          `Industry Code` = naics_code,
           `Industry` = naics_title_2digits,
           `Establishment` = establishment_name,
           `Company` = company_name,
