@@ -258,12 +258,12 @@ server <- function(input, output, session) {
       select(`State` = STUSPS,
              `County` = NAMELSAD,
              `Zip Code` = zip_code,
-             `Industry Code` = naics_code,
              `Industry` = naics_title_2digits,
-             `Narrative Description` = NEW_NAR_WHAT_HAPPENED,
-             `Nature of Injury` = nature_title_pred,
+             `Industry Code` = naics_code,
              `Company` = company_name,
              `Establishment` = establishment_name,
+             `Narrative Description` = NEW_NAR_WHAT_HAPPENED,
+             `Nature of Injury` = nature_title_pred,
              `Establishment Incidence Rate (per 100 FTE)` = incidence
              )
     
@@ -286,6 +286,11 @@ server <- function(input, output, session) {
           `County` = NAMELSAD,
           `State` = STUSPS,
           `Zip Code` = zip_code,
+          `Industry` = naics_title_2digits,
+          `Industry Code` = naics_code,
+          `Company` = company_name,
+          `Establishment` = establishment_name,
+          `Occupation` = soc_description,
           `Before Incident` = NEW_NAR_BEFORE_INCIDENT,
           `What Happened` = NEW_NAR_WHAT_HAPPENED,
           `Injury/Illness` = NEW_NAR_INJURY_ILLNESS,
@@ -296,11 +301,6 @@ server <- function(input, output, session) {
           `Part of Body` = part_title_pred,
           `Event or Exposure` = event_title_pred,
           `Source` = source_title_pred,
-          `Occupation` = soc_description,
-          `Industry Code` = naics_code,
-          `Industry` = naics_title_2digits,
-          `Establishment` = establishment_name,
-          `Company` = company_name,
           `Establishment Incidence Rate (per 100 FTE)` = incidence)
       
       write.csv(narratives[filtered_rows, ], file, row.names = FALSE)

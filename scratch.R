@@ -51,9 +51,11 @@ final = left_join(geo, naics, by = "naics_code_2digits")
   
 #write data file
 final_copy = final [, c(3, 5, 9:10, 52, 16, 20, 34:39, 41, 43, 45, 47, 49:50)]
-saveRDS(final_copy, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
+saveRDS(data, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
 data = readRDS("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
+
+data$naics_code = as.character(data$naics_code)
 
 na = geo %>%
   filter(is.na(GEOID))
