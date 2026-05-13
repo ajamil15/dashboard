@@ -23,42 +23,42 @@ data = data %>%
 # UI
 ui = fluidPage(theme = shinytheme("sandstone"),
                titlePanel("County-Level Map of Workplace Injuries (2023)"),
-               sidebarLayout(
-                 sidebarPanel(
-                   width = 2,
+      
+               fluidRow(
+                 column(6,
+                        selectizeInput(
+                          "industry",
+                          "Select Industry(s)",
+                          choices = c(sort(unique(data$naics_title_2digits))),
+                          multiple = TRUE,
+                          options = list(placeholder = "All industries")
+                        )
+                 ),
+                 column(6,
+                        selectizeInput(
+                          "state",
+                          "Select State(s)",
+                          choices = c(sort(unique(data$STUSPS))),
+                          multiple = TRUE,
+                          options = list(placeholder = "Entire country")
+                        )
+                 )
+               ),
+               div(class = "text-center",
+                   p(strong("Click a County to select"))
+               ),
+               hr(),
+               div(class = "text-center",
                    actionButton(
                      "clear_filters",
                      "Clear All Filters",
                      icon = icon("eraser"),
                      class = "btn-danger"
-                   ),
-                   selectizeInput(
-                     "industry",
-                     "Select Industry(s)",
-                     choices = c(sort(unique(data$naics_title_2digits))),
-                     multiple = TRUE,
-                     options = list(
-                       placeholder = "All industries"
-                     )
-                     ),
-                   selectizeInput("state", 
-                               "Select State(s)",
-                               choices = c(sort(unique(data$STUSPS))),
-                               multiple = TRUE,
-                               options = list(
-                                 placeholder = "Entire country"
-                               )
-                               ),
-                   p(strong("Click a County to select")),
-                   hr(),
-                   p(strong("Data Source:")),
-                   p("This dashboard is based on the 2023 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
-                     a(" View data", href = "https://www.osha.gov/Establishment-Specific-Injury-and-Illness-Data", target = "_blank")),
-                   br(),
-                   p(em("For questions, contact Alia Jamil (ajamil@gwu.edu)"))
-                 ),
-                 
-                 mainPanel(width = 10,
+                   )
+               ),
+               br(),
+    
+                 mainPanel(width = 12,
                    uiOutput("active_filters"),
                    tabsetPanel(
                      tabPanel("County-level Map", 
@@ -67,13 +67,20 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                               DTOutput("narrative_table"),
                               br(),
                               helpText("Note: search feature for table only. Download this data and more detailed information, including all injury narratives."),
-                              downloadButton("download_narratives", "Download Detailed Data", class = "btn-primary")),
+                              downloadButton("download_narratives", "Download Detailed Data", class = "btn-primary"),
+                              hr(),
+                              p(strong("Data Source:")),
+                              p("This dashboard is based on the 2023 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
+                                a("The ITA Case Detail Dataset can be found here", href = "https://www.osha.gov/Establishment-Specific-Injury-and-Illness-Data", target = "_blank")),
+                              br(),
+                              p(em("For questions, contact Alia Jamil (ajamil@gwu.edu)"))),
                      tabPanel("Data Information",
                               fluidRow(
                                 column(
                                   width = 8,
                                   h3("Data Information"),
-                                  p("This data is limited to what employers report. This only includes large employers (100+ employees).
+                                  p("The data used in this dashboard is OSHA Injury Tracking Application data recorded on Form 300 and Form 301 
+                                  from large employers (100+ employees) in 2023. It is limited to what employers report.
 Mining, industries exempt from routine OSHA record-keeping, low-hazard industries, commuting injuries,
 federal agencies, state and local government in states with no OSHA plans, most occupational fatalities,
 and businesses closed before the electronic reporting deadline are not required to report."
@@ -87,7 +94,7 @@ software. An establishment is a single workplace. A company can have several est
                                   ),
                                 )
                               )
-                     )))))
+                     ))))
 
 
 #server
@@ -259,7 +266,7 @@ server <- function(input, output, session) {
              `County` = NAMELSAD,
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
-             `Industry Code` = naics_code,
+             `NAICS Code` = naics_code,
              `Company` = company_name,
              `Establishment` = establishment_name,
              `Narrative Description` = NEW_NAR_WHAT_HAPPENED,
@@ -287,7 +294,8 @@ server <- function(input, output, session) {
           `State` = STUSPS,
           `Zip Code` = zip_code,
           `Industry` = naics_title_2digits,
-          `Industry Code` = naics_code,
+          `NAICS Code` = naics_code,
+          #EIN
           `Company` = company_name,
           `Establishment` = establishment_name,
           `Occupation` = soc_description,

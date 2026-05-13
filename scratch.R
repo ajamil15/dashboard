@@ -1,17 +1,32 @@
 library(readr)
-library(leaflet)
 library(dplyr)
 library(DT)
 library(sf)
 library(tigris)
 library(stringr)
+library(ggplot2)
 
 #data
-data = readRDS("/Users/aliajamil/Desktop/r/work/old_ITA_FIPS.rds")
+data = readRDS("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 updated = read_csv("/Users/aliajamil/Desktop/r/work/Updated.csv")
+summary = read_csv("/Users/aliajamil/Desktop/r/work/Summary.csv")
 #data2 = read_csv("/Users/aliajamil/Desktop/r/work/ITACaseDetail.csv")
 #requires geocoded dataset ^
 
+rate_case = data %>%
+  group_by(establishment_name, total_hours_worked) %>%
+  summarise(
+    total_injuries = n()
+  ) %>%
+  mutate(incidence = (total_injuries * 200000) / total_hours_worked)
+
+rate_sum = summary %>%
+  group_by(establishment_name, total_hours_worked, total_injuries) %>%
+  mutate(incidence = (total_injuries * 200000) / total_hours_worked)
+
+#boxplot comparison, spaghetti plot (facet wrap by industry), average difference table
+
+unique(summary$no_injuries_illnesses)
 counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
   st_transform(crs = 4326) %>%
   st_simplify(dTolerance = 500)
@@ -53,7 +68,6 @@ final = left_join(geo, naics, by = "naics_code_2digits")
 final_copy = final [, c(3, 5, 9:10, 52, 16, 20, 34:39, 41, 43, 45, 47, 49:50)]
 saveRDS(data, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
-data = readRDS("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
 
 data$naics_code = as.character(data$naics_code)
 
@@ -160,22 +174,6 @@ st_crs(joined_data)
 bounds = joined_data %>%
   filter(state == "NJ") %>%
   st_bbox()
-
-
-agg_datas = final %>%
-  group_by(establishment_name, GEOID, COUNTYNAME, state) %>%
-  summarise(
-    total_injuries = n(),
-    hours_worked = sum(total_hours_worked, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(incidence = ifelse(hours_worked > 0, (total_injuries * 200000) / hours_worked, NA))
-
-agg_datas = agg_datas %>%
-  group_by(GEOID, COUNTYNAME, state) %>%
-  summarise(total_injuries = sum(total_injuries, na.rm = TRUE),
-            hours_worked = sum(hours_worked, na.rm = TRUE),
-            incidence_avg = mean(incidence, na.rm = TRUE), .groups = "drop")
 
   # Join with shapefile
   map_data <- counties_sf %>%
