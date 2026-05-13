@@ -25,7 +25,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                titlePanel("County-Level Map of Workplace Injuries (2023)"),
       
                fluidRow(
-                 column(6,
+                 column(4,
                         selectizeInput(
                           "industry",
                           "Select Industry(s)",
@@ -34,7 +34,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                           options = list(placeholder = "All industries")
                         )
                  ),
-                 column(6,
+                 column(4,
                         selectizeInput(
                           "state",
                           "Select State(s)",
@@ -42,11 +42,11 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                           multiple = TRUE,
                           options = list(placeholder = "Entire country")
                         )
-                 )
+                 ),
+                 column(4,
+                        p(strong("Click a County to select")))
                ),
-               div(class = "text-center",
-                   p(strong("Click a County to select"))
-               ),
+              
                hr(),
                div(class = "text-center",
                    actionButton(
