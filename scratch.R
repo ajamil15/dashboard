@@ -7,99 +7,47 @@ library(stringr)
 library(ggplot2)
 
 #data
-data = readRDS("/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
-updated = read_csv("/Users/aliajamil/Desktop/r/work/Updated.csv")
-summary = read_csv("/Users/aliajamil/Desktop/r/work/Summary.csv")
-#data2 = read_csv("/Users/aliajamil/Desktop/r/work/ITACaseDetail.csv")
-#requires geocoded dataset ^
+data = readRDS("/Users/aliajamil/Desktop/r/work/ITA_FIPS.rds")
+  geoid = data [ , c(1, 43)]
+  geoid = geoid %>% distinct()
+naics = readxl:: read_xlsx("/Users/aliajamil/Desktop/r/work/NAICS.xlsx")
+naics = naics %>%
+  rename(naics_code_2digits = NAICS,
+         naics_title_2digits = Sector)
+naics$naics_code_2digits = as.character(naics$naics_code_2digits)
+updated = read_csv("/Users/aliajamil/Desktop/r/work/ITA_Case_Detail_Data_2023.csv")
 
-rate_case = data %>%
-  group_by(establishment_name, total_hours_worked) %>%
-  summarise(
-    total_injuries = n()
-  ) %>%
-  mutate(incidence = (total_injuries * 200000) / total_hours_worked)
 
-rate_sum = summary %>%
-  group_by(establishment_name, total_hours_worked, total_injuries) %>%
-  mutate(incidence = (total_injuries * 200000) / total_hours_worked)
+data1 = left_join(updated, geoid)
+data1 = data1 %>%
+  mutate(naics_code_2digits = str_sub(naics_code, end = 2))
+data1 = left_join(data1, naics)
 
-#boxplot comparison, spaghetti plot (facet wrap by industry), average difference table
+data2 = read_csv("/Users/aliajamil/Desktop/r/work/ITA_Case_Detail_Data_2024.csv")
 
-unique(summary$no_injuries_illnesses)
 counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
   st_transform(crs = 4326) %>%
   st_simplify(dTolerance = 500)
 
-names(counties_sf)
+#merge
+data2$zip_code = as.character(data2$zip_code)
+data2$ein = as.character(data2$ein)
+data2 = data2 %>%
+  rename(year_filing_for = year_of_filing)
+final = full_join(data1, data2)
 
-state_sf = states(cb = TRUE, resolution = "20m", class = "sf", year = 2020)
-cross = read_csv("/Users/aliajamil/Desktop/r/work/ZIP-COUNTY-FIPS_2017-06.csv")
-
-
-data %>% summarise(across(everything(), ~n_distinct(.)/n()))
-
-a = unique(data$establishment_id)
-b = unique(updated$establishment_id)
-i = intersect(a, b)
-
-d = data[, c(5, 178)]
-d = d %>%
-  distinct()
-
-geo = left_join(updated, d, by = "establishment_id")
-
-#county data
-joined_data = left_join(geo, counties_sf, by = "GEOID")
-
-#recreate naics
-naics = data[ , c(120:121)]
-naics = naics %>%
-  distinct() %>%
-  drop_na()
-  
-geo = geo %>%
-  mutate(naics_code_2digits = str_sub(naics_code, end = 2) )
-geo$naics_code_2digits = as.numeric(geo$naics_code_2digits)
-
-final = left_join(geo, naics, by = "naics_code_2digits")
-  
 #write data file
-final_copy = final [, c(3, 5, 9:10, 52, 16, 20, 34:39, 41, 43, 45, 47, 49:50)]
-saveRDS(data, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS.rds")
-
-
-data$naics_code = as.character(data$naics_code)
-
-na = geo %>%
-  filter(is.na(GEOID))
-
-unique(na$establishment_name)
-
-#replace missing values
-zips = unique(na$zip_code)
-c = cross %>%
-  filter(ZIP %in% zips) 
-count_c = c %>%
-  count(ZIP)
-c = c [,c(1,4)]
-test = left_join(na, c, by = c("zip_code" = "ZIP"))
-
-#not updated
-cross %>% filter(ZIP == "")
-final = final %>%
-  mutate(GEOID = case_when(
-    is.na(COUNTYNAME) & zip_code == "39530" ~ '28047',
-    is.na(COUNTYNAME) & zip_code == "44870" ~ '39043',
-    is.na(COUNTYNAME) & zip_code == "77550" ~ '48167',
-    is.na(COUNTYNAME) & zip_code == "802" ~ '78030',
-    is.na(COUNTYNAME) & zip_code == "97103" ~ '41007',
-    is.na(COUNTYNAME) & zip_code == "98121" ~ '53033',
-    is.na(COUNTYNAME) & zip_code == "783" ~ '72047',
-    is.na(COUNTYNAME) & zip_code == "92037" ~ '06073',
-    is.na(COUNTYNAME) & zip_code == "99612" ~ '02013',
-    TRUE ~ GEOID
-  ))
+final = final [, c(2:3, 5, 8:10, 52, 16, 20, 33:39, 41, 43, 45, 47, 49:50)]
+final <- final %>%
+  mutate(across(c(state, zip_code, naics_title_2digits, soc_description,
+                  nature_title_pred, part_title_pred, event_title_pred,
+                  source_title_pred, GEOID), as.factor))
+data1 = final %>%
+  filter (year_filing_for == 2023)
+data2 = final %>%
+  filter (year_filing_for == 2024)
+saveRDS(data1, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS_23.rds", compress = "xz")
+saveRDS(data2, "/Users/aliajamil/Desktop/r/work/dashboard_github/US_dashboard/ITA_FIPS_24.rds", compress = "xz")
 
 
 #remove territories without shapefiles

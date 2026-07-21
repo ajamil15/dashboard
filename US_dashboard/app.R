@@ -9,7 +9,11 @@ library(shinythemes)
 
 
 # Load your data
-data = readRDS("ITA_FIPS.rds")
+data = bind_rows(
+  readRDS("ITA_FIPS_23.rds"),
+  readRDS("ITA_FIPS_24.rds")
+)
+
 counties_sf = counties(cb = TRUE, resolution = "20m", class = "sf", year = 2020)%>%
   st_transform(crs = 4326) %>%
   st_simplify(dTolerance = 500)
@@ -22,10 +26,10 @@ data = data %>%
 
 # UI
 ui = fluidPage(theme = shinytheme("sandstone"),
-               titlePanel("County-Level Map of Workplace Injuries (2023)"),
+               titlePanel("OSHA ITA Case Detail Data (2023 and 2024)"),
       
                fluidRow(
-                 column(4,
+                 column(3,
                         selectizeInput(
                           "industry",
                           "Select Industry(s)",
@@ -34,7 +38,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                           options = list(placeholder = "All industries")
                         )
                  ),
-                 column(4,
+                 column(3,
                         selectizeInput(
                           "state",
                           "Select State(s)",
@@ -43,7 +47,16 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                           options = list(placeholder = "Entire country")
                         )
                  ),
-                 column(4,
+                 column(3,
+                        selectizeInput(
+                          "year",
+                          "Select Year",
+                          choices = c(sort(unique(data$year_filing_for))),
+                          multiple = TRUE,
+                          options = list(placeholder = "2023 and 2024")
+                        )
+                 ),
+                 column(3,
                         p(strong("Click a County to select")))
                ),
               
@@ -61,16 +74,16 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                  mainPanel(width = 12,
                    uiOutput("active_filters"),
                    tabsetPanel(
-                     tabPanel("County-level Map", 
+                     tabPanel("Map and Table", 
                               leafletOutput("injury_map", height = "700px"),
                               br(),
+                              helpText("Note(s): Table reflects 2023 and 2024 data; Map is 2023 only. Search feature filters the table only. Download this data and more detailed information, including all injury narratives, below."),
                               DTOutput("narrative_table"),
                               br(),
-                              helpText("Note: search feature for table only. Download this data and more detailed information, including all injury narratives."),
                               downloadButton("download_narratives", "Download Detailed Data", class = "btn-primary"),
                               hr(),
                               p(strong("Data Source:")),
-                              p("This dashboard is based on the 2023 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
+                              p("This dashboard is based on the 2023 and 2024 OSHA Injury Tracking Application (ITA) data from large employers (100+ employees).",
                                 a("The ITA Case Detail Dataset can be found here", href = "https://www.osha.gov/Establishment-Specific-Injury-and-Illness-Data", target = "_blank")),
                               br(),
                               p(em("For questions, contact Alia Jamil (ajamil@gwu.edu)"))),
@@ -80,7 +93,7 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                                   width = 8,
                                   h3("Data Information"),
                                   p("The data used in this dashboard is OSHA Injury Tracking Application data recorded on Form 300 and Form 301 
-                                  from large employers (100+ employees) in 2023. It is limited to what employers report.
+                                  from large employers (100+ employees) in 2023 and 2024. It is limited to what employers report.
 Mining, industries exempt from routine OSHA record-keeping, low-hazard industries, commuting injuries,
 federal agencies, state and local government in states with no OSHA plans, most occupational fatalities,
 and businesses closed before the electronic reporting deadline are not required to report."
@@ -92,19 +105,20 @@ based on reported data and may inaccurately represent injury burden."
                                   p("Data will download in CSV format, which can be opened and further explored in Excel, R, or other
 software. An establishment is a single workplace. A company can have several establishments. Company names may not be standardized across the dataset."
                                   ),
+                                  p("Currently, the map does not reflect 2024 data and is a work-in-progress. The table includes both years.")
                                 )
                               )
                      ))))
 
 
 #server
-server <- function(input, output, session) {
+server = function(input, output, session) {
   
   selectedcounty = reactiveVal(character(0))
   
   observeEvent(input$injury_map_shape_click, {
-    clicked_geoid <- input$injury_map_shape_click$id
-    current <- selectedcounty()
+    clicked_geoid = input$injury_map_shape_click$id
+    current = selectedcounty()
     
     if (clicked_geoid %in% current) {
       selectedcounty(setdiff(current, clicked_geoid))
@@ -113,7 +127,7 @@ server <- function(input, output, session) {
     }
   })
   
-  county_name <- reactive({
+  county_name = reactive({
     req(selectedcounty())
     
     data %>%
@@ -126,9 +140,10 @@ server <- function(input, output, session) {
     selectedcounty(character(0))
     updateSelectizeInput(session, "industry", selected = character(0))
     updateSelectizeInput(session, "state", selected = character(0))
+    #add year
   })
   
-  output$active_filters <- renderUI({
+  output$active_filters = renderUI({
     tags$div(
       style = "background:#f8f9fa; padding:10px; border-radius:5px;",
       strong("Current Filters: "),
@@ -138,7 +153,9 @@ server <- function(input, output, session) {
         if (length(input$industry))
           tags$li(paste("Industry:", paste(input$industry, collapse = ", "))),
         if (length(input$state))
-          tags$li(paste("State:", paste(input$state, collapse = ", ")))
+          tags$li(paste("State:", paste(input$state, collapse = ", "))),
+        if (length(input$year))
+          tags$li(paste("Year:", paste(input$year, collapse = ", ")))
       )
     )
   })
@@ -155,13 +172,16 @@ server <- function(input, output, session) {
     ) %>% lapply(htmltools::HTML)})
   
   
-  map_data <- reactive({
+  map_data = reactive({
     agg_data = data
     if(!is.null(input$industry) && length(input$industry) > 0) {
       agg_data = agg_data %>%
         filter(naics_title_2digits %in% input$industry)}
     if (!is.null(input$state) && length(input$state)>0) {
       agg_data = agg_data %>% filter(STUSPS %in% input$state)
+    }
+    if (!is.null(input$year) && length(input$year)>0) {
+      agg_data = agg_data %>% filter(year_filing_for %in% input$year)
     }
     
     agg_data = agg_data %>%
@@ -231,17 +251,22 @@ server <- function(input, output, session) {
     
     
     if (!is.null(selectedcounty()) && length(selectedcounty()) > 0){
-      filtered <- filtered %>% 
+      filtered = filtered %>% 
         filter(GEOID %in% selectedcounty())
     }
     
     if (!is.null(input$state) && length(input$state) > 0) {
-      filtered <- filtered %>% filter(STUSPS %in% input$state)
+      filtered = filtered %>% filter(STUSPS %in% input$state)
     }
     
     if (!is.null(input$industry) && length(input$industry) > 0) {
-      filtered <- filtered %>%
+      filtered = filtered %>%
         filter(naics_title_2digits %in% input$industry)
+    }
+    
+    if (!is.null(input$year) && length(input$year) > 0) {
+      filtered = filtered %>%
+        filter(year_filing_for %in% input$year)
     }
     
     filtered = filtered %>%
@@ -257,12 +282,13 @@ server <- function(input, output, session) {
   
   
   # Narrative table + download
-  output$narrative_table <- renderDT({
+  output$narrative_table = renderDT({
     
     filtered_nar = filtered_data()
     
-    narratives <- filtered_nar %>%
-      select(`State` = STUSPS,
+    narratives = filtered_nar %>%
+      select(`Year` = year_filing_for,
+              `State` = STUSPS,
              `County` = NAMELSAD,
              `Zip Code` = zip_code,
              `Industry` = naics_title_2digits,
@@ -280,24 +306,25 @@ server <- function(input, output, session) {
               rownames = FALSE)
   }, server = TRUE)
   
-  output$download_narratives <- downloadHandler(
+  output$download_narratives = downloadHandler(
     filename = function() {
       paste0("OSHA_ITA_injuries.csv")
 
     },
     content = function(file) {
-      filtered_rows <- input$narrative_table_rows_all
+      filtered_rows = input$narrative_table_rows_all
       
-      narratives <- filtered_data() %>%
+      narratives = filtered_data() %>%
         select(
+          `Year` = year_filing_for,
           `County` = NAMELSAD,
           `State` = STUSPS,
           `Zip Code` = zip_code,
           `Industry` = naics_title_2digits,
           `NAICS Code` = naics_code,
-          #EIN
-          `Company` = company_name,
+          `Establishment ID` = establishment_id,
           `Establishment` = establishment_name,
+          `Company` = company_name,
           `Occupation` = soc_description,
           `Before Incident` = NEW_NAR_BEFORE_INCIDENT,
           `What Happened` = NEW_NAR_WHAT_HAPPENED,
