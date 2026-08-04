@@ -32,10 +32,10 @@ ui = fluidPage(theme = shinytheme("sandstone"),
                  column(3,
                         selectizeInput(
                           "industry",
-                          "Select Industry(s)",
+                          "Select Sector(s)",
                           choices = c(sort(unique(data$naics_title_2digits))),
                           multiple = TRUE,
-                          options = list(placeholder = "All industries")
+                          options = list(placeholder = "All Sectors")
                         )
                  ),
                  column(3,
@@ -151,7 +151,7 @@ server = function(input, output, session) {
         if (length(selectedcounty()))
           tags$li(paste("County:", paste(county_name(), collapse = ", "))),
         if (length(input$industry))
-          tags$li(paste("Industry:", paste(input$industry, collapse = ", "))),
+          tags$li(paste("Sector:", paste(input$industry, collapse = ", "))),
         if (length(input$state))
           tags$li(paste("State:", paste(input$state, collapse = ", "))),
         if (length(input$year))
@@ -269,6 +269,8 @@ server = function(input, output, session) {
         filter(year_filing_for %in% input$year)
     }
     
+    filtered$naics_code = as.character(filtered$naics_code)
+    
     filtered = filtered %>%
       group_by(establishment_name) %>%
       mutate(total_injuries = n(),
@@ -291,7 +293,7 @@ server = function(input, output, session) {
               `State` = STUSPS,
              `County` = NAMELSAD,
              `Zip Code` = zip_code,
-             `Industry` = naics_title_2digits,
+             `Sector` = naics_title_2digits,
              `NAICS Code` = naics_code,
              `Company` = company_name,
              `Establishment` = establishment_name,
@@ -320,7 +322,7 @@ server = function(input, output, session) {
           `County` = NAMELSAD,
           `State` = STUSPS,
           `Zip Code` = zip_code,
-          `Industry` = naics_title_2digits,
+          `Sector` = naics_title_2digits,
           `NAICS Code` = naics_code,
           `Establishment ID` = establishment_id,
           `Establishment` = establishment_name,
